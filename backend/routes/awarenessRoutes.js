@@ -9,6 +9,9 @@ router.get('/featured', awarenessController.getFeaturedPosts);
 router.get('/trending', awarenessController.getTrendingPosts);
 router.get('/:id', awarenessController.getAwarenessPostById);
 
+// Chatbot route
+router.post('/chat', awarenessController.handleChatMessage);
+
 // Private (admin) routes
 router.post('/', authenticateToken, authorizeAdmin, awarenessController.addAwarenessPost);
 router.put('/:id', authenticateToken, authorizeAdmin, awarenessController.updateAwarenessPost);

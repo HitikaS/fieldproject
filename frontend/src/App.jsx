@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SocketProvider } from './context/SocketContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -19,22 +20,83 @@ function App() {
     <Router>
       <SocketProvider>
         <div className="flex flex-col min-h-screen bg-gray-50">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/recyclables" element={<RecyclableExchange />} />
-              <Route path="/donations" element={<DonationBoard />} />
-              <Route path="/awareness" element={<AwarenessHub />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/water" element={<WaterTracking />} />
-              <Route path="/carbon" element={<CarbonFootprint />} />
-              <Route path="/admin" element={<AdminPanel />} />
-            </Routes>
-          </main>
-          <Footer />
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/dashboard" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <Dashboard />
+                </main>
+                <Footer />
+              </>
+            } />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/recyclables" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <RecyclableExchange />
+                </main>
+                <Footer />
+              </>
+            } />
+            <Route path="/donations" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <DonationBoard />
+                </main>
+                <Footer />
+              </>
+            } />
+            <Route path="/awareness" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <AwarenessHub />
+                </main>
+                <Footer />
+              </>
+            } />
+            <Route path="/leaderboard" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <Leaderboard />
+                </main>
+                <Footer />
+              </>
+            } />
+            <Route path="/water" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <WaterTracking />
+                </main>
+                <Footer />
+              </>
+            } />
+            <Route path="/carbon" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <CarbonFootprint />
+                </main>
+                <Footer />
+              </>
+            } />
+            <Route path="/admin" element={
+              <>
+                <Navbar />
+                <main className="flex-1">
+                  <AdminPanel />
+                </main>
+                <Footer />
+              </>
+            } />
+          </Routes>
         </div>
       </SocketProvider>
     </Router>

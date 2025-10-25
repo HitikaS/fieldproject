@@ -18,15 +18,18 @@ function WaterTracking() {
     amount: '',
     unit: 'liters',
     notes: '',
-    efficiency: 'medium'
+    efficiency: 'average'
   });
 
   const categories = ['shower', 'dishes', 'laundry', 'garden', 'drinking', 'other'];
-  const efficiencyLevels = ['high', 'medium', 'low'];
+  const efficiencyLevels = ['excellent', 'good', 'average', 'poor'];
 
   useEffect(() => {
-    fetchWaterLogs();
-    fetchWaterStats();
+    const loadData = async () => {
+      await fetchWaterLogs();
+      // Stats are calculated automatically in fetchWaterLogs
+    };
+    loadData();
   }, []);
 
   const fetchWaterLogs = async () => {
@@ -37,12 +40,65 @@ function WaterTracking() {
       const response = await api.get('/water', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setWaterLogs(response.data.logs || []);
+      const logs = response.data.logs || [];
+      setWaterLogs(logs);
+      
+      // Calculate stats from logs
+      calculateStats(logs);
     } catch (error) {
       console.error('Error fetching water logs:', error);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const calculateStats = (logs) => {
+    console.log('Calculating stats for logs:', logs.length);
+    
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const weekLogs = logs.filter(log => new Date(log.date) >= weekAgo);
+    const monthLogs = logs.filter(log => new Date(log.date) >= monthAgo);
+    
+    console.log('Week logs:', weekLogs.length, 'Month logs:', monthLogs.length);
+    
+    const totalThisWeek = weekLogs.reduce((sum, log) => {
+      const amount = log.unit === 'gallons' ? log.amount * 3.78541 : log.amount;
+      return sum + amount;
+    }, 0);
+    
+    const totalThisMonth = monthLogs.reduce((sum, log) => {
+      const amount = log.unit === 'gallons' ? log.amount * 3.78541 : log.amount;
+      return sum + amount;
+    }, 0);
+    
+    const totalAll = logs.reduce((sum, log) => {
+      const amount = log.unit === 'gallons' ? log.amount * 3.78541 : log.amount;
+      return sum + amount;
+    }, 0);
+    
+    const averageDaily = logs.length > 0 ? totalAll / logs.length : 0;
+    
+    // Calculate efficiency percentage based on excellent/good logs
+    const excellentCount = logs.filter(log => log.efficiency === 'excellent').length;
+    const goodCount = logs.filter(log => log.efficiency === 'good').length;
+    const efficiency = logs.length > 0 ? Math.round(((excellentCount + goodCount) / logs.length) * 100) : 0;
+    
+    console.log('Stats calculated:', {
+      totalThisWeek: Math.round(totalThisWeek * 10) / 10,
+      totalThisMonth: Math.round(totalThisMonth * 10) / 10,
+      averageDaily: Math.round(averageDaily * 10) / 10,
+      efficiency: efficiency
+    });
+    
+    setStats({
+      totalThisWeek: Math.round(totalThisWeek * 10) / 10,
+      totalThisMonth: Math.round(totalThisMonth * 10) / 10,
+      averageDaily: Math.round(averageDaily * 10) / 10,
+      efficiency: efficiency
+    });
   };
 
   const fetchWaterStats = async () => {
@@ -53,7 +109,35 @@ function WaterTracking() {
       const response = await api.get('/water/stats', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setStats(response.data.stats || stats);
+      
+      const backendStats = response.data.stats || {};
+      
+      // Calculate time-based stats from the logs
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const weekLogs = waterLogs.filter(log => new Date(log.date) >= weekAgo);
+      const monthLogs = waterLogs.filter(log => new Date(log.date) >= monthAgo);
+      
+      const totalThisWeek = weekLogs.reduce((sum, log) => {
+        const amount = log.unit === 'gallons' ? log.amount * 3.78541 : log.amount;
+        return sum + amount;
+      }, 0);
+      
+      const totalThisMonth = monthLogs.reduce((sum, log) => {
+        const amount = log.unit === 'gallons' ? log.amount * 3.78541 : log.amount;
+        return sum + amount;
+      }, 0);
+      
+      const averageDaily = waterLogs.length > 0 ? (backendStats.totalUsage || 0) / Math.max(waterLogs.length, 1) : 0;
+      
+      setStats({
+        totalThisWeek: Math.round(totalThisWeek * 10) / 10,
+        totalThisMonth: Math.round(totalThisMonth * 10) / 10,
+        averageDaily: Math.round(averageDaily * 10) / 10,
+        efficiency: backendStats.efficiencyScore || 0
+      });
     } catch (error) {
       console.error('Error fetching water stats:', error);
     }
@@ -72,8 +156,13 @@ function WaterTracking() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      console.log('Water log response:', response.data);
+
       if (response.data.success) {
-        setWaterLogs([response.data.log, ...waterLogs]);
+        // Refresh the logs list from server (this will also recalculate stats)
+        await fetchWaterLogs();
+        
+        // Reset form
         setNewLog({
           date: new Date().toISOString().split('T')[0],
           category: 'shower',
@@ -81,23 +170,30 @@ function WaterTracking() {
           amount: '',
           unit: 'liters',
           notes: '',
-          efficiency: 'medium'
+          efficiency: 'average'
         });
         setShowAddForm(false);
-        fetchWaterStats(); // Refresh stats
         alert('Water usage logged successfully!');
+      } else {
+        alert('Failed to add water log');
       }
     } catch (error) {
       console.error('Error adding water log:', error);
-      alert(error.response?.data?.message || 'Failed to add water log');
+      console.error('Error details:', error.response?.data);
+      
+      // Still refresh the list in case it was actually saved
+      await fetchWaterLogs();
+      
+      alert(error.response?.data?.message || 'Failed to add water log. However, it may have been saved - please check your logs.');
     }
   };
 
   const getEfficiencyColor = (efficiency) => {
     switch (efficiency) {
-      case 'high': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-red-100 text-red-800';
+      case 'excellent': return 'bg-green-100 text-green-800';
+      case 'good': return 'bg-blue-100 text-blue-800';
+      case 'average': return 'bg-yellow-100 text-yellow-800';
+      case 'poor': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -137,19 +233,19 @@ function WaterTracking() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">This Week</h3>
-          <p className="text-3xl font-bold text-blue-600">{stats.totalThisWeek} L</p>
+          <p className="text-3xl font-bold text-blue-600">{stats.totalThisWeek || 0} L</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">This Month</h3>
-          <p className="text-3xl font-bold text-blue-600">{stats.totalThisMonth} L</p>
+          <p className="text-3xl font-bold text-blue-600">{stats.totalThisMonth || 0} L</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">Daily Average</h3>
-          <p className="text-3xl font-bold text-blue-600">{stats.averageDaily} L</p>
+          <p className="text-3xl font-bold text-blue-600">{stats.averageDaily || 0} L</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">Efficiency</h3>
-          <p className="text-3xl font-bold text-green-600">{stats.efficiency}%</p>
+          <p className="text-3xl font-bold text-green-600">{stats.efficiency || 0}%</p>
         </div>
       </div>
 
@@ -254,13 +350,16 @@ function WaterTracking() {
                         {log.efficiency} efficiency
                       </span>
                     </div>
-                    <p className="text-gray-700">{log.description || 'No description provided'}</p>
+                    <p className="text-gray-700">{log.activity || log.notes || 'No description provided'}</p>
                     <p className="text-sm text-gray-500 mt-1">
                       {new Date(log.date).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-600">{log.usage} L</p>
+                    <p className="text-2xl font-bold text-blue-600">{log.amount} {log.unit === 'liters' ? 'L' : 'gal'}</p>
+                    {log.ecoPointsEarned > 0 && (
+                      <p className="text-sm text-green-600">+{log.ecoPointsEarned} eco points</p>
+                    )}
                   </div>
                 </div>
               </div>

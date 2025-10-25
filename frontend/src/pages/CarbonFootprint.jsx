@@ -40,8 +40,46 @@ function CarbonFootprint() {
 
   useEffect(() => {
     fetchFootprintLogs();
-    fetchFootprintStats();
   }, []);
+
+  const calculateStats = (logs) => {
+    console.log('Calculating carbon stats for logs:', logs.length);
+    
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const weekLogs = logs.filter(log => new Date(log.date) >= weekAgo);
+    const monthLogs = logs.filter(log => new Date(log.date) >= monthAgo);
+    
+    const totalThisWeek = weekLogs.reduce((sum, log) => sum + (log.carbonEmission || 0), 0);
+    const totalThisMonth = monthLogs.reduce((sum, log) => sum + (log.carbonEmission || 0), 0);
+    const totalAll = logs.reduce((sum, log) => sum + (log.carbonEmission || 0), 0);
+    const averageDaily = logs.length > 0 ? totalAll / logs.length : 0;
+    
+    // Calculate breakdown by category
+    const breakdown = {};
+    logs.forEach(log => {
+      if (!breakdown[log.category]) {
+        breakdown[log.category] = 0;
+      }
+      breakdown[log.category] += log.carbonEmission || 0;
+    });
+    
+    console.log('Carbon stats calculated:', {
+      totalThisWeek: Math.round(totalThisWeek * 10) / 10,
+      totalThisMonth: Math.round(totalThisMonth * 10) / 10,
+      averageDaily: Math.round(averageDaily * 10) / 10,
+      breakdown
+    });
+    
+    setStats({
+      totalThisWeek: Math.round(totalThisWeek * 10) / 10,
+      totalThisMonth: Math.round(totalThisMonth * 10) / 10,
+      averageDaily: Math.round(averageDaily * 10) / 10,
+      breakdown
+    });
+  };
 
   const fetchFootprintLogs = async () => {
     try {
@@ -51,7 +89,9 @@ function CarbonFootprint() {
       const response = await api.get('/footprint', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setFootprintLogs(response.data.logs || []);
+      const logs = response.data.logs || [];
+      setFootprintLogs(logs);
+      calculateStats(logs);
     } catch (error) {
       console.error('Error fetching footprint logs:', error);
     } finally {
@@ -60,17 +100,9 @@ function CarbonFootprint() {
   };
 
   const fetchFootprintStats = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await api.get('/footprint/stats', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStats(response.data.stats || stats);
-    } catch (error) {
-      console.error('Error fetching footprint stats:', error);
-    }
+    // This function is no longer needed as we calculate stats from logs
+    // Keeping it here in case it's called elsewhere
+    return;
   };
 
   const handleAddLog = async (e) => {
@@ -87,7 +119,9 @@ function CarbonFootprint() {
       });
 
       if (response.data.success) {
-        setFootprintLogs([response.data.log, ...footprintLogs]);
+        // Refresh logs from server (this will also recalculate stats)
+        await fetchFootprintLogs();
+        
         setNewLog({
           date: new Date().toISOString().split('T')[0],
           category: 'transport',
@@ -97,7 +131,6 @@ function CarbonFootprint() {
           notes: ''
         });
         setShowAddForm(false);
-        fetchFootprintStats(); // Refresh stats
         
         // Emit real-time event
         if (connected) {
@@ -161,15 +194,15 @@ function CarbonFootprint() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">This Week</h3>
-          <p className="text-3xl font-bold text-green-600">{stats.totalThisWeek} kg CO₂</p>
+          <p className="text-3xl font-bold text-green-600">{stats.totalThisWeek || 0} kg CO₂</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">This Month</h3>
-          <p className="text-3xl font-bold text-green-600">{stats.totalThisMonth} kg CO₂</p>
+          <p className="text-3xl font-bold text-green-600">{stats.totalThisMonth || 0} kg CO₂</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">Daily Average</h3>
-          <p className="text-3xl font-bold text-green-600">{stats.averageDaily} kg CO₂</p>
+          <p className="text-3xl font-bold text-green-600">{stats.averageDaily || 0} kg CO₂</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold text-gray-700">Reduction Goal</h3>
@@ -282,9 +315,14 @@ function CarbonFootprint() {
                     <p className="text-sm text-gray-500 mt-1">
                       {log.amount} {log.unit} • {new Date(log.date).toLocaleDateString()}
                     </p>
+                    {log.ecoPointsEarned > 0 && (
+                      <p className="text-sm text-green-600 font-semibold mt-1">
+                        +{log.ecoPointsEarned} eco points
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600">{log.carbonFootprint || '0'} kg CO₂</p>
+                    <p className="text-2xl font-bold text-green-600">{log.carbonEmission || 0} kg CO₂</p>
                   </div>
                 </div>
               </div>

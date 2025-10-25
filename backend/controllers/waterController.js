@@ -30,20 +30,16 @@ const addWaterLog = async (req, res) => {
     await user.save();
 
     // Emit real-time events
-    socketManager.emitWaterLogAdded({
-      user: user.username,
+    socketManager.emitWaterUpdate(user, {
+      category: waterLog.category,
       activity: waterLog.activity,
       amount: amountInLiters,
-      category: waterLog.category,
       efficiency: waterLog.efficiency
     });
 
-    socketManager.emitEcoPointsEarned({
-      userId: user._id,
-      username: user.username,
+    socketManager.emitLeaderboardUpdate(user, {
       points: waterLog.ecoPointsEarned,
-      reason: 'Water usage logged',
-      newTotal: user.ecoPoints
+      reason: 'Water usage logged'
     });
 
     res.status(201).json({

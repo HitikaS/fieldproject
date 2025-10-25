@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
+import Chatbot from '../components/Chatbot';
 
 function AwarenessHub() {
   const [posts, setPosts] = useState([]);
@@ -320,23 +321,9 @@ function AwarenessHub() {
         )}
       </div>
 
-      {/* Eco Tips Section */}
-      <div className="mt-8 bg-green-50 p-6 rounded-lg">
-        <h3 className="text-lg font-bold text-green-800 mb-4">🌍 Quick Eco Tips</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded">
-            <h4 className="font-semibold text-green-700 mb-2">💡 Energy Saving</h4>
-            <p className="text-sm text-gray-600">Switch to LED bulbs to reduce energy consumption by up to 80%</p>
-          </div>
-          <div className="bg-white p-4 rounded">
-            <h4 className="font-semibold text-green-700 mb-2">♻️ Waste Reduction</h4>
-            <p className="text-sm text-gray-600">Use reusable bags and containers to minimize single-use plastics</p>
-          </div>
-          <div className="bg-white p-4 rounded">
-            <h4 className="font-semibold text-green-700 mb-2">🚲 Transportation</h4>
-            <p className="text-sm text-gray-600">Walk, bike, or use public transport for short trips</p>
-          </div>
-        </div>
+      {/* EcoBot - Central Chatbot */}
+      <div className="mt-8">
+        <Chatbot />
       </div>
     </div>
   );

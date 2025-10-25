@@ -134,22 +134,9 @@ function Dashboard() {
     );
   }
 
-  // If no user and not loading, show login prompt
+  // If no user and not loading, redirect to landing page
   if (!user && !loading) {
-    return (
-      <div className="max-w-6xl mx-auto py-8 px-4">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-green-700 mb-4">Welcome to Sustainable Lifestyle! 🌱</h1>
-          <p className="text-gray-600 mb-8">Please log in to access your personalized dashboard.</p>
-          <Link 
-            to="/login" 
-            className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Login to Continue
-          </Link>
-        </div>
-      </div>
-    );
+    return null; // Let the routing handle this
   }
 
   if (!user) {

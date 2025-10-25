@@ -4,6 +4,8 @@ const socketManager = require('../utils/socketManager');
 
 // Helper functions for carbon emission calculation
 const calculateCarbonEmission = (category, activity, amount, unit) => {
+  console.log('calculateCarbonEmission called with:', { category, activity, amount, unit });
+  
   // Emission factors (kg CO2 per unit)
   const emissionFactors = {
     transport: {
@@ -37,23 +39,31 @@ const calculateCarbonEmission = (category, activity, amount, unit) => {
   };
 
   const categoryFactors = emissionFactors[category];
-  if (!categoryFactors) return 0;
+  if (!categoryFactors) {
+    console.log('No category factors found for:', category);
+    return 0;
+  }
 
   // Try to find exact activity match first
   let factor = 0;
   const activityLower = activity.toLowerCase();
   
+  console.log('Looking for activity:', activityLower, 'in keys:', Object.keys(categoryFactors));
+  
   Object.keys(categoryFactors).forEach(key => {
     if (activityLower.includes(key)) {
-      const unitFactor = categoryFactors[key][unit];
+      const unitFactor = categoryFactors[key][unit.toLowerCase()];
+      console.log(`Matched key "${key}", looking for unit "${unit.toLowerCase()}" in`, categoryFactors[key]);
       if (unitFactor !== undefined) {
         factor = unitFactor;
+        console.log('Found factor:', factor);
       }
     }
   });
 
   // Default factors if no specific match
   if (factor === 0) {
+    console.log('No specific match found, using default for category:', category);
     switch (category) {
       case 'transport':
         factor = unit === 'km' ? 0.15 : unit === 'miles' ? 0.24 : 0;
@@ -71,9 +81,12 @@ const calculateCarbonEmission = (category, activity, amount, unit) => {
         factor = unit === 'kg' ? 3.0 : 0;
         break;
     }
+    console.log('Default factor:', factor);
   }
 
-  return parseFloat((amount * factor).toFixed(2));
+  const result = parseFloat((amount * factor).toFixed(2));
+  console.log('Final carbon emission:', result);
+  return result;
 };
 
 const calculateEcoPoints = (carbonEmission, category) => {
@@ -132,7 +145,11 @@ const addFootprintLog = async (req, res) => {
     await user.save();
 
     // Emit real-time carbon footprint update
-    socketManager.emitCarbonUpdate(user, footprintLog);
+    socketManager.emitCarbonUpdate(user, {
+      activity: footprintLog.activity,
+      amount: footprintLog.amount,
+      carbonEmission: footprintLog.carbonEmission
+    });
     
     // Emit leaderboard update for eco points
     socketManager.emitLeaderboardUpdate(user, {

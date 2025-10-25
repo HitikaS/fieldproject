@@ -4,6 +4,8 @@ import api from '../utils/api';
 function RecyclableExchange() {
   const [recyclables, setRecyclables] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [selectedItemContact, setSelectedItemContact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -72,8 +74,40 @@ function RecyclableExchange() {
     }
   };
 
-  const handleContactSeller = (item) => {
-    alert(`Contact seller for "${item.title}"\nThis would normally open a messaging interface.`);
+  const handleContactSeller = async (item) => {
+    try {
+      // Fetch the full item details to get contact info
+      const token = localStorage.getItem('token');
+      const response = await api.get(`/recyclables/${item._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const itemDetails = response.data.recyclable;
+      const contactInfo = itemDetails.contactInfo;
+      
+      // Use default phone number if no phone is available
+      const phoneNumber = contactInfo?.phone || '931234567';
+      
+      // Set the contact info and show modal
+      setSelectedItemContact({
+        title: item.title,
+        phone: phoneNumber,
+        preferredTime: contactInfo?.preferredTime
+      });
+      setShowContactModal(true);
+    } catch (error) {
+      console.error('Error fetching contact info:', error);
+      alert('Unable to get contact information. Please try again later.');
+    }
+  };
+
+  const copyToClipboard = (text, type) => {
+    navigator.clipboard.writeText(text).then(() => {
+      alert(`${type} copied to clipboard!`);
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy. Please try again.');
+    });
   };
 
   const filteredRecyclables = recyclables.filter(item => {
@@ -246,6 +280,64 @@ function RecyclableExchange() {
           ))
         )}
       </div>
+
+      {/* Contact Modal */}
+      {showContactModal && selectedItemContact && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Contact Seller</h2>
+              <button
+                onClick={() => setShowContactModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                Item: {selectedItemContact.title}
+              </h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-600">📞 Phone Number</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-mono font-semibold text-gray-800">
+                    {selectedItemContact.phone}
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(selectedItemContact.phone, 'Phone number')}
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {selectedItemContact.preferredTime && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <span className="text-sm font-semibold text-gray-600">⏰ Best Time to Contact</span>
+                  <p className="text-gray-800 mt-1">{selectedItemContact.preferredTime}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => setShowContactModal(false)}
+                className="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

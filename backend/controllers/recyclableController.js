@@ -35,20 +35,17 @@ const addRecyclable = async (req, res) => {
     await user.save();
 
     // Emit real-time events
-    socketManager.emitNewRecyclableItem({
-      user: user.username,
+    socketManager.emitNewRecyclable(user, {
+      _id: recyclable._id,
       title: recyclable.title,
       category: recyclable.category,
       location: recyclable.location,
       condition: recyclable.condition
     });
 
-    socketManager.emitEcoPointsEarned({
-      userId: user._id,
-      username: user.username,
+    socketManager.emitLeaderboardUpdate(user, {
       points: 5,
-      reason: 'Listed recyclable item',
-      newTotal: user.ecoPoints
+      reason: 'Listed recyclable item'
     });
 
     res.status(201).json({
@@ -230,13 +227,15 @@ const reserveRecyclable = async (req, res) => {
     const reserver = await User.findById(req.user.id);
 
     // Emit real-time event
-    socketManager.emitRecyclableClaimed({
-      itemId: recyclable._id,
-      title: recyclable.title,
-      category: recyclable.category,
-      owner: recyclable.user.username,
-      claimer: reserver.username
-    });
+    socketManager.emitRecyclableClaimed(
+      recyclable.user._id,
+      reserver,
+      {
+        _id: recyclable._id,
+        title: recyclable.title,
+        category: recyclable.category
+      }
+    );
 
     res.json({
       message: 'Item reserved successfully',
@@ -281,30 +280,15 @@ const completeExchange = async (req, res) => {
     await owner.save();
     await receiver.save();
 
-    // Emit real-time events
-    socketManager.emitExchangeCompleted({
-      itemTitle: recyclable.title,
-      owner: owner.username,
-      receiver: receiver.username,
-      category: recyclable.category,
-      ecoImpact: recyclable.ecoImpact
-    });
-
-    // Emit eco points for both users
-    socketManager.emitEcoPointsEarned({
-      userId: owner._id,
-      username: owner.username,
+    // Emit leaderboard updates for both users
+    socketManager.emitLeaderboardUpdate(owner, {
       points: 10,
-      reason: 'Recyclable item exchanged',
-      newTotal: owner.ecoPoints
+      reason: 'Recyclable item exchanged'
     });
 
-    socketManager.emitEcoPointsEarned({
-      userId: receiver._id,
-      username: receiver.username,
+    socketManager.emitLeaderboardUpdate(receiver, {
       points: 5,
-      reason: 'Received recyclable item',
-      newTotal: receiver.ecoPoints
+      reason: 'Received recyclable item'
     });
 
     res.json({
